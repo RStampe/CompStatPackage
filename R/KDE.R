@@ -307,7 +307,7 @@ get_ucv_bw <- function(vec_obs, kernel_evaluator = kernel_cpp_epanechnikov) {
 #' @return A list with:
 #'   - `x`: Grid points where the density is estimated.
 #'   - `y`: Corresponding density values.
-my_density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", binning = TRUE, number_of_gridpoints = 512) {
+density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", binning = TRUE, number_of_gridpoints = 512) {
   number_of_gridpoints <- 2^round(log(number_of_gridpoints, base = 2))
 
   # Process the kernel parameter
