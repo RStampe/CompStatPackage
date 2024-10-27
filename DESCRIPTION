@@ -13,7 +13,10 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
-    Rcpp
+    Rcpp,
+    tidyverse,
+    patchwork,
+    scales
 LinkingTo: 
     Rcpp
 URL: https://github.com/RStampe/CompStatPackage

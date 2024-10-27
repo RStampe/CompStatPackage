@@ -12,6 +12,10 @@ import_poisson_data <- function() {
   # Read the data
   poisson_data <- read.csv(file = poisson_data_path)
 
+  # Set `x` and `z` in the global environment
+  x <<- poisson_data$x
+  z <<- poisson_data$z
+
   # Call the C++ function to set global vectors
   set_data_vectors(poisson_data$x, poisson_data$z)
   invisible(NULL)
@@ -650,4 +654,201 @@ perform_rejection_sampling <- function(n, log_target_density, envelope_type = "g
     type = "vectorize"
   }
   rejection_sampler_wrapper(envelope, sample_size = n, type)
+}
+
+
+
+
+plot_target <- function(object, ...) {
+  UseMethod("plot_target")  # Tells R to dispatch methods based on the object's class
+}
+
+
+
+#' Plot Target Density
+#'
+#' Plots the target density of an envelope class object, optionally on a logarithmic scale.
+#'
+#' @param object An object of class \code{envelope_class} containing the target density function.
+#' @param width A numeric value defining the additional range width for the plot beyond the peak point. Default is \code{1}.
+#' @param log_scale A logical value indicating if the plot should use a logarithmic scale. Default is \code{TRUE}.
+#' @param lower, upper Numeric values defining the lower and upper bounds for the optimization range. Default is \code{0} and \code{0.5}.
+#' @return A ggplot object showing the target density plot.
+#' @export
+plot_target.envelope_class <- function(object, width = 1, log_scale = T, lower = 0, upper = 0.5) {
+
+  top_point <- optimise(object$log_target_density, interval = c(lower, upper), maximum = TRUE)$maximum
+
+  gridpoints <- seq(0, top_point+width, length.out = 512)
+
+  transform <- function(x){
+    if (!log_scale) {
+      return(exp(x))
+    }
+    x
+  }
+
+  df <- data.frame(
+    gridpoints = gridpoints,
+    target = object$log_target_density(gridpoints)
+  )
+
+  # Plot the function
+  ggplot(df, aes(x = gridpoints, y = transform(target))) +
+    geom_line() +
+    labs(title = "Plot of density", x = "y", y = "")
+}
+
+#' Plot Target and Envelope Densities
+#'
+#' Plots the target and envelope densities for an envelope class object, with options for logarithmic scale.
+#'
+#' @param object An object of class \code{envelope_class} containing the target and envelope density functions.
+#' @param width A numeric value defining the additional range width for the plot beyond the peak point. Default is \code{1}.
+#' @param log_scale A logical value indicating if the plot should use a logarithmic scale. Default is \code{TRUE}.
+#' @param lower, upper Numeric values defining the bounds for optimization and density evaluation. Default is \code{0} and \code{0.5}.
+#' @return A ggplot object displaying both target and envelope densities.
+#' @export
+plot.envelope_class <- function(object, width = 1, log_scale = T, lower = 0, upper = 0.5) {
+
+  top_point <- optimise(object$log_target_density, interval = c(lower, upper), maximum = TRUE)$maximum
+
+  gridpoints <- seq(0, top_point+width, length.out = 512)
+
+  transform <- function(x){
+    if (!log_scale) {
+      return(exp(x))
+    }
+    x
+  }
+
+  df <- data.frame(
+    gridpoints = gridpoints,
+    target = object$log_target_density(gridpoints),
+    envelope = object$log_envelope_density(gridpoints)
+  ) %>% pivot_longer(cols = -gridpoints, names_to = "Description", values_to = "y")
+
+  # Plot the function
+  ggplot(df, aes(x = gridpoints, y = transform(y), color = Description)) +
+    geom_line() +
+    labs(title = "Plot of density",subtitle = paste0("Estimated acceptance rate is ",round(object$est_alpha*100, 2),"%"), x = "y", y = "") +
+    scale_y_continuous(labels = ifelse(!log_scale, label_scientific(digits = 2),label_number(accuracy = 1)))
+}
+
+
+plot_diff <- function(object, ...) {
+  UseMethod("plot_diff")  # Tells R to dispatch methods based on the object's class
+}
+
+
+#' Plot Difference Between Target and Envelope Densities
+#'
+#' Plots the difference between the target and envelope densities for an envelope class object.
+#'
+#' @param object An object of class \code{envelope_class} containing the target and envelope density functions.
+#' @param width A numeric value defining additional range width for the plot beyond the peak point. Default is \code{1}.
+#' @param log_scale A logical value for plotting on a logarithmic scale. Default is \code{TRUE}.
+#' @param lower, upper Numeric values for the optimization and density evaluation bounds. Default is \code{0} and \code{0.5}.
+#' @return A ggplot object showing the difference between target and envelope densities.
+#' @export
+plot_diff.envelope_class <- function(object, width = 1, log_scale = T, lower = 0, upper = 0.5) {
+
+  top_point <- optimise(object$log_target_density, interval = c(lower, upper), maximum = TRUE)$maximum
+
+  gridpoints <- seq(0, top_point+width, length.out = 512)
+
+  transform <- function(x){
+    if (!log_scale) {
+      return(exp(x))
+    }
+    x
+  }
+
+  df <- data.frame(
+    gridpoints = gridpoints,
+    target = object$log_target_density(gridpoints),
+    envelope = object$log_envelope_density(gridpoints)
+  ) %>%
+    mutate(y = transform(envelope)-transform(target))
+
+  # Plot the function
+  ggplot(df, aes(x = gridpoints, y = y)) +
+    geom_line() +
+    scale_y_continuous(labels = ifelse(!log_scale, label_scientific(digits = 2),label_number(accuracy = 1))) +
+    labs(title = "Difference between target and envelope", x = "x", y = "envelope-target")
+}
+
+
+#' Plot Rejection Sampling Results
+#'
+#' Visualizes samples from a target density, with an optional normalized density curve.
+#'
+#' @param object An object of class \code{rejection_sampler} containing sampling results and density functions.
+#' @param density_function An optional function for adding a density curve. Default is \code{NULL}.
+#' @param add_normalized_density A logical value to include a normalized target density curve. Default is \code{TRUE}.
+#' @param lower, upper Numeric values defining the range for integrating the target density. Default is \code{0} and \code{Inf}.
+#' @return A ggplot object showing sampled density with optional density curves.
+#' @export
+plot.rejection_sampler <- function(object, density_function = NULL, add_normalized_density = T, lower = 0, upper = Inf) {
+
+  plot <- ggplot() +
+    labs(x = "y", y = "Density") +
+    theme_bw()
+
+  # Add histogram if requested
+  plot <- plot + geom_histogram(aes(x = object$samples, y = after_stat(density)),
+                                color = "white", fill = "steelblue", bins = 30)
+
+  # Capture the modified plot with density line
+  if(add_normalized_density){
+
+    target_density <- function(x) exp(object$log_target_density(x))
+
+    int_val <- integrate(target_density, lower, upper)
+
+    normalized_density <- function(x) target_density(x)/int_val$value
+
+    x <- seq( min(object$samples)*ifelse(min(object$samples)>0, 0.9, 1.1), max(object$samples)*ifelse(max(object$samples)>0, 0.9, 1.1), length.out = 512)
+
+    plot <- plot +
+      geom_line(aes(x = x, y = normalized_density(x)), linewidth = 1.5, color = "red")
+  }
+
+
+  if(!is.null(density_function)) {
+    x <- seq( min(object$samples)*ifelse(min(object$samples)>0, 0.9, 1.1), max(object$samples)*ifelse(max(object$samples)>0, 0.9, 1.1), length.out = 512)
+
+
+    plot <- plot +
+      geom_line(aes(x = x, y = density_function(x)), linewidth = 1.5, color = "green")
+  }
+
+
+
+
+
+  return(plot +
+           theme(plot.background = element_rect(fill = "#fafafa"),
+                 panel.border = element_blank()) +
+           labs(title = "Samples from target with normalized density",
+                subtitle = paste0("Acceptance rate is ", round(object$acceptance_rate*100, 2),"%") ))
+}
+
+
+#' Plot Combined Envelope and Sampling Results
+#'
+#' Creates a combined plot showing the envelope and rejection sampling results, using a wrapper class.
+#'
+#' @param object An object of class \code{wrapper_class} containing envelope and sampling objects.
+#' @param log_scale A logical value to determine if the plot should use a logarithmic scale. Default is \code{FALSE}.
+#' @param add_normalized_density A logical value to add a normalized density curve. Default is \code{TRUE}.
+#' @param ... Additional arguments passed to the plotting functions.
+#' @return A ggplot object showing a combined plot of envelope and sampling results.
+#' @export
+plot.wrapper_class <- function(object, log_scale = F, add_normalized_density = T, ...) {
+  plot_envelope <- plot(wraps$envelope_class, log_scale = log_scale, ...)
+  plot_samples <- plot(wraps$rejection_sampler, add_normalized_density)
+
+  plot_envelope /
+    plot_samples
 }
