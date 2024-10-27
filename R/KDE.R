@@ -386,7 +386,7 @@ add_density_to_plot <- function(plot, density_object, color = "red") {
 #' @param color A character string specifying the color of the density line for \code{density_object}. Default is \code{"black"}.
 #' @return A ggplot object showing the density and optional histogram with a true density line.
 #' @export
-autoplot.my_density <- function(density_object, histogram = TRUE, true_density_function = NULL, color = "black") {
+autoplot <- function(density_object, histogram = TRUE, true_density_function = NULL, color = "black") {
 
   plot <- ggplot() +
     labs(x = "x", y = "Density") +
