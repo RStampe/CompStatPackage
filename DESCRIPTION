@@ -16,3 +16,5 @@ Imports:
     Rcpp
 LinkingTo: 
     Rcpp
+URL: https://github.com/RStampe/CompStatPackage
+BugReports: https://github.com/RStampe/CompStatPackage/issues
