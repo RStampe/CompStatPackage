@@ -361,3 +361,60 @@ density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", 
   )
 }
 
+
+#' Add Density Line to Plot
+#'
+#' This helper function adds a density line to an existing ggplot object based on a specified density.
+#'
+#' @param plot A ggplot object to which the density line will be added.
+#' @param density_object A list with two components: \code{x} (numeric vector for x-coordinates) and \code{y} (numeric vector for y-coordinates).
+#' @param color A character string specifying the color of the density line. Default is \code{"red"}.
+#' @return A ggplot object with the added density line.
+#' @export
+add_density_to_plot <- function(plot, density_object, color = "red") {
+  plot +
+    geom_line(aes(x = density_object$x, y = density_object$y), size = 1.5, color = color)
+}
+
+#' Plot Density and Histogram for Custom Density Object
+#'
+#' Generates a ggplot visualization of a custom density object, optionally adding a histogram and/or a true density line.
+#'
+#' @param density_object A custom density object with components \code{data} (numeric vector of sample points), \code{x} (x-coordinates for density), and \code{y} (y-coordinates for density).
+#' @param histogram A logical value indicating if a histogram should be added to the plot. Default is \code{TRUE}.
+#' @param true_density_function An optional function to compute the true density values for comparison. Default is \code{NULL}.
+#' @param color A character string specifying the color of the density line for \code{density_object}. Default is \code{"black"}.
+#' @return A ggplot object showing the density and optional histogram with a true density line.
+#' @export
+autoplot.my_density <- function(density_object, histogram = TRUE, true_density_function = NULL, color = "black") {
+
+  plot <- ggplot() +
+    labs(x = "x", y = "Density") +
+    theme_bw()
+
+  # Add histogram if requested
+  if (histogram) {
+    plot <- plot + geom_histogram(aes(x = density_object$data, y = after_stat(density)), bins = 30,
+                                  color = "white", fill = "steelblue")
+  }
+
+
+  plot <- add_density_to_plot(plot, density_object, color = color)
+
+
+  if(!is.null(true_density_function)) {
+    true_object <- list(
+      x = density_object$data,
+      y =  true_density_function(density_object$data)
+    )
+
+    plot <- add_density_to_plot(plot, true_object, color = "red")
+  }
+
+
+  # Capture the modified plot with density line
+  plot
+}
+
+
+
