@@ -28,7 +28,6 @@ gaussian_kernel <- function(x) (1 / sqrt(2 * pi)) * exp(-x^2 / 2)
 #' @param bandwidth A positive numeric value representing the smoothing bandwidth.
 #' @param kernel_function A function specifying the kernel to use, which should take a numeric vector as input.
 #' @return A list with two components: `x` (grid points) and `y` (corresponding density estimates).
-#' @export
 kernel_vec <- function(grid_points, vec_obs, bandwidth, kernel_function) {
   vec_density_values <- numeric(length(grid_points))
 
@@ -50,7 +49,6 @@ kernel_vec <- function(grid_points, vec_obs, bandwidth, kernel_function) {
 #' @param bandwidth A positive numeric value representing the smoothing bandwidth.
 #' @param kernel_function A kernel function that takes a numeric vector as input.
 #' @return A list with components: `x` (grid points) and `y` (corresponding density estimates).
-#' @export
 kernel_binning_smart <- function(grid_points, vec_obs, bandwidth, kernel_function) {
   grid_lower <- min(grid_points)
   grid_upper <- max(grid_points)
@@ -87,7 +85,6 @@ kernel_binning_smart <- function(grid_points, vec_obs, bandwidth, kernel_functio
 #' @return A list containing:
 #'   - `x`: Grid points where the density is estimated.
 #'   - `y`: Corresponding density values.
-#' @export
 kernel_density_estimation <- function(vec_obs, bandwidth, kernel_function = NULL, kernel_calculator = NULL, n = 512, ...) {
 
   grid_points <- seq(min(vec_obs) - 3 * bandwidth, max(vec_obs) + 3 * bandwidth, length.out = n)
@@ -307,6 +304,7 @@ get_ucv_bw <- function(vec_obs, kernel_evaluator = kernel_cpp_epanechnikov) {
 #' @return A list with:
 #'   - `x`: Grid points where the density is estimated.
 #'   - `y`: Corresponding density values.
+#' @export
 density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", binning = TRUE, number_of_gridpoints = 512) {
   number_of_gridpoints <- 2^round(log(number_of_gridpoints, base = 2))
 
