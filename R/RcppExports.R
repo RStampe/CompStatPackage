@@ -101,3 +101,54 @@ kernel_cpp_gaussian_binning <- function(grid_points, vec_obs, bandwidth) {
     .Call('_CompStatPackage_kernel_cpp_gaussian_binning', PACKAGE = 'CompStatPackage', grid_points, vec_obs, bandwidth)
 }
 
+#' @name set_data_vectors
+NULL
+
+#' @name log_target_density_single_obs
+NULL
+
+#' @name log_target_density_cpp
+NULL
+
+#' @name d_log_target_density_single_obs
+NULL
+
+#' @name d_log_target_density_cpp
+NULL
+
+#' @name log_envelope_gaussian_density
+NULL
+
+#' @name get_accepts_gaussian_cpp
+NULL
+
+#' @name create_sampler_function_cpp
+NULL
+
+#' @name create_log_envelope_density_cpp
+NULL
+
+set_data_vectors <- function(x_in, z_in) {
+    invisible(.Call('_CompStatPackage_set_data_vectors', PACKAGE = 'CompStatPackage', x_in, z_in))
+}
+
+log_target_density_cpp <- function(y) {
+    .Call('_CompStatPackage_log_target_density_cpp', PACKAGE = 'CompStatPackage', y)
+}
+
+d_log_target_density_cpp <- function(y) {
+    .Call('_CompStatPackage_d_log_target_density_cpp', PACKAGE = 'CompStatPackage', y)
+}
+
+get_accepts_gaussian_cpp <- function(mu, sd, log_alpha_prime, proposals, u_samples) {
+    .Call('_CompStatPackage_get_accepts_gaussian_cpp', PACKAGE = 'CompStatPackage', mu, sd, log_alpha_prime, proposals, u_samples)
+}
+
+create_sampler_function_cpp <- function(n, c, Q, a, b, z) {
+    .Call('_CompStatPackage_create_sampler_function_cpp', PACKAGE = 'CompStatPackage', n, c, Q, a, b, z)
+}
+
+create_log_envelope_density_cpp <- function(x, z, a, b) {
+    .Call('_CompStatPackage_create_log_envelope_density_cpp', PACKAGE = 'CompStatPackage', x, z, a, b)
+}
+

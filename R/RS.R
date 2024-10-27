@@ -1,0 +1,653 @@
+#' Import Poisson Data and Set Data Vectors
+#'
+#' This function reads a CSV file containing Poisson data, extracts relevant vectors,
+#' and sets them as global variables in C++ for further processing.
+#'
+#' @return None. Sets global variables `x` and `z` in C++.
+#' @export
+import_poisson_data <- function() {
+  # Locate the CSV file within the package
+  poisson_data_path <- system.file("extdata", "poisson.csv", package = "CompStatPackage")
+
+  # Read the data
+  poisson_data <- read.csv(file = poisson_data_path)
+
+  # Call the C++ function to set global vectors
+  set_data_vectors(poisson_data$x, poisson_data$z)
+  invisible(NULL)
+}
+#' Logarithm of Target Density Function
+#'
+#' Computes the logarithm of the target density function for Poisson-distributed data,
+#' with vectorized operations over an input vector \code{y}.
+#'
+#' @param y A numeric vector input for evaluating the target density.
+#' @return The log target density for each value of \code{y}.
+#' @export
+log_target_density_vectorize <- Vectorize(function(y) {
+  ifelse((y>=0), sum(y*z*x-exp(y*x)), -Inf)
+})
+
+
+#' Derivative of Log Target Density Function
+#'
+#' Computes the derivative of the log target density function for a Poisson model.
+#'
+#' @param y A numeric input vector for derivative evaluation.
+#' @return The derivative of the log target density for each \code{y}.
+#' @export
+d_log_target_density_vectorize <- Vectorize(function(y) {
+  sum(z*x - (x * exp(y * x)))
+})
+
+
+#' Log Unnormalized Gaussian Density
+#'
+#' This function calculates the unnormalized logarithm of a Gaussian density given
+#' a mean and standard deviation.
+#'
+#' @param x Numeric value to evaluate the density at.
+#' @param mean The mean of the Gaussian distribution.
+#' @param sd The standard deviation of the Gaussian distribution.
+#' @return The log of the unnormalized Gaussian density.
+#' @export
+log_unnormalized_gaussian_density <- function(x, mean, sd) {
+  -(x-mean)^2/(2*sd^2)
+}
+
+
+#' Compute Log Alpha Prime for Envelope
+#'
+#' Determines the optimal log constant \code{alpha} for comparing target and envelope densities.
+#'
+#' @param log_target_density A function to compute the log target density.
+#' @param log_envelope_density A function to compute the log envelope density.
+#' @return Optimal log \code{alpha} as \code{log_alpha_prime}.
+#' @export
+get_log_alpha_prime <- function(log_target_density, log_envelope_density) {
+
+  diff_log_density <- function(x) log_envelope_density(x) - log_target_density(x)
+
+  log_alpha_prime <- optimize(f = diff_log_density, interval = c(0, 1), maximum = FALSE)
+
+  min(log_alpha_prime$objective, diff_log_density(0))
+}
+
+
+#' Acceptance Probability Estimation with Gaussian Envelope
+#'
+#' Estimates the acceptance probability \code{alpha} using a Gaussian envelope.
+#'
+#' @param mu Mean of the Gaussian envelope.
+#' @param sd Standard deviation of the Gaussian envelope.
+#' @param log_target_density Function computing the log target density.
+#' @return A numeric estimate of the acceptance probability \code{alpha}.
+#' @export
+accept_prob_est_gauss = function(mu, sd, log_target_density){
+  grid <- seq(0,1,length.out = 50)
+
+  log_p <- function(x) log_unnormalized_gaussian_density(x, mu, sd)
+  log_alpha_prime = get_log_alpha_prime(log_target_density, log_p)
+  #normalization_constant_target <- 1.050152e-41
+
+  # 1/sqrt(2*pi) = 0.3989423
+  #normalization_constant_density <- 0.3989423/sd
+  normalization <- 4.189501e-42/sd
+  alpha <- exp(log_alpha_prime) * normalization
+  as.numeric(!any(log_target_density(grid) + log_alpha_prime >= log_p(grid))) * alpha
+}
+
+
+#' Optimal Parameters for Gaussian Envelope
+#'
+#' Finds the optimal mean and standard deviation parameters for the Gaussian envelope
+#' by maximizing the acceptance probability.
+#'
+#' @param log_target_density A function for computing the log target density.
+#' @return A list containing the optimal mean, standard deviation, and acceptance probability.
+#' @export
+get_optimal_parameters <- function(log_target_density) {
+
+  objective_function <- function(parameters){
+    mu <- parameters[1]
+    sd <- parameters[2]
+    -accept_prob_est_gauss(mu, sd, log_target_density_cpp)
+  }
+  # Use optim() to find the minimum of the function
+  result <- optim(par = c(0, 1),  # Initial values for x and y
+                  fn = objective_function,  # The objective function
+                  method = "BFGS")  # Optimization method
+  if(!is.null(result$message))
+    warning(result$message)
+
+  result
+}
+
+
+#' Gaussian Envelope Validation
+#'
+#' Checks if a proposed envelope function is valid, ensuring it bounds the target density.
+#'
+#' @param log_target_density A function to compute the log target density.
+#' @param log_envelope_density A function to compute the log envelope density.
+#' @param lower Lower bound of the interval to check.
+#' @param upper Upper bound of the interval to check.
+#' @param n Number of points to sample within the interval.
+#' @return \code{TRUE} if the envelope is valid; \code{FALSE} otherwise.
+#' @export
+is_an_evnelope <- function(log_target_density, log_envelope_density, lower = 0, upper = 10, n = 1000) {
+  grid <- seq(lower,upper,length.out = n)
+
+  !any(log_target_density(grid) > log_envelope_density(grid))
+}
+
+
+#' Construct Gaussian Envelope
+#'
+#' Builds a Gaussian envelope around a target density with customizable options.
+#'
+#' @param log_target_density Function for computing the log target density.
+#' @param type Character string specifying envelope type, either \code{"tight"} or \code{"manual"}.
+#' @param mu Optional mean for the Gaussian envelope.
+#' @param sd Optional standard deviation for the Gaussian envelope.
+#' @return An envelope object with sampling and density properties.
+#' @export
+get_gaussian_envelope <- function(log_target_density, type = "manual", mu = 0, sd = 1) {
+
+  # Change these
+  type <- match.arg(type, choices = c("tight", "manual"))
+
+  if(type == "manual"){
+    est_alpha <- accept_prob_est_gauss(mu, sd, log_target_density)
+  } else if (type == "tight") {
+    optim_object <- get_optimal_parameters(log_target_density)
+
+    mu <- optim_object$par[1]
+    sd <- optim_object$par[2]
+    est_alpha <- -optim_object$value
+  }
+
+  log_envelope_density <- function(x) log_unnormalized_gaussian_density(x, mean = mu, sd = sd)
+
+  if(!is_an_evnelope(log_target_density, log_envelope_density))
+    warning("proposed evnelope is not working")
+
+  # Calculate alpha_prime by maximizing the ratio of target_density/envelope_density
+  log_alpha_prime <- get_log_alpha_prime(log_target_density, log_envelope_density)
+
+  # Create the envelope object as a list
+  setup <- list(
+    sampler = function(n) rnorm(n, mean = mu, sd = sd),
+    log_target_density = log_target_density,
+    log_envelope_density = function(x) log_envelope_density(x)-log_alpha_prime, #envelope: log(g(x)) + log(alpha) for log(f(x))
+    log_alpha_prime = log_alpha_prime, # Normalization constant log_alpha_prime
+    mu = mu,
+    sd = sd,
+    est_alpha = est_alpha
+  )
+
+  class(setup) <- c("envelope_class", "gaussian_envelope_class")
+
+  return(setup)
+}
+
+#### RS - Helper functions ####
+get_proposals <- function(x, n, ...) {
+  UseMethod("get_proposals")
+}
+
+get_accepts <- function(x, proposals, ...) {
+  UseMethod("get_accepts")
+}
+
+controller <- function(x, sample_size, ...) {
+  UseMethod("controller")
+}
+
+add_class <- function(x, new_class) {
+  class(x) <- c(class(x), new_class)
+  x
+}
+
+
+#' Generate Proposals Using Naive Method
+#'
+#' This function generates a set of proposals using a naive sampling method defined in `setup`.
+#' The method leverages a sampling function (`setup$sampler`) that generates `n` proposals.
+#'
+#' @param setup A list containing a sampler function, `setup$sampler`, which generates proposals.
+#' @param n An integer specifying the number of proposals to generate.
+#' @return A numeric vector or list of proposals generated by the sampler function.
+#' @export
+get_proposals.naive <- function(setup, n) {
+  setup$sampler(n)
+}
+
+
+#' Compute Acceptances Using Naive Method
+#'
+#' This function evaluates acceptances for a set of proposals using a naive acceptance rule.
+#' The acceptance probability is determined by comparing random uniform values to the ratio of
+#' the target density to an envelope density, both defined in `setup`.
+#'
+#' @param setup A list containing the functions `setup$log_target_density` and `setup$log_envelope_density`.
+#' These functions compute log densities for the target and envelope distributions, respectively.
+#' @param proposals A numeric vector of proposals for which acceptances are to be evaluated.
+#' @return A logical vector indicating whether each proposal is accepted (`TRUE`) or rejected (`FALSE`).
+#' @export
+get_accepts.naive <- function(setup, proposals) {
+  (runif(length(proposals)) <= exp(setup$log_target_density(proposals) - setup$log_envelope_density(proposals)))
+}
+
+#' Generate Proposal Vector
+#'
+#' This function generates proposals for each element in the input vector `x` based on a given parameter `n`.
+#' The method used is `get_proposals.naive`, which performs a naive generation of proposals.
+#'
+#' @param x A numeric vector for which proposals are to be generated.
+#' @param n An integer specifying the number of proposals to generate for each element in `x`.
+#' @return A list or vector of proposals generated for each element in `x`.
+#' @seealso \code{\link{get_proposals.naive}}
+#' @export
+get_proposals.vectorize <- function(x, n) {
+  get_proposals.naive(x, n)
+}
+
+#' Generate Acceptance Vector
+#'
+#' This function computes acceptances for each element in the input vector `x`, based on given `proposals`.
+#' The method used is `get_accepts.naive`, which performs a naive acceptance calculation.
+#'
+#' @param x A numeric vector for which acceptances are to be calculated.
+#' @param proposals A list or vector of proposals generated for each element in `x`.
+#' @return A logical vector indicating acceptances for each element in `x`.
+#' @seealso \code{\link{get_accepts.naive}}
+#' @export
+get_accepts.vectorize <- function(x, proposals) {
+  get_accepts.naive(x, proposals)
+}
+
+#' Controller for Vectorized Rejection Sampling
+#'
+#' Runs a vectorized rejection sampling algorithm with dynamic proposal adjustment.
+#'
+#' @param setup An envelope object with sampling properties.
+#' @param sample_size Number of samples to generate.
+#' @param scaling_factor Dynamic scaling factor for sample adjustment.
+#' @param min_proposals Minimum number of proposals for each iteration.
+#' @return A list with the final sampled values and acceptance rate.
+#' @export
+controller.vectorize <- function(setup, sample_size, scaling_factor = 1, min_proposals = 1) {
+
+  samples <- numeric(sample_size)  # Preallocate for efficiency
+  accepted_samples <- 0            # Counter for accepted samples
+  iteration <- 0                   # Track number of iterations
+  sample_list <- list()             # Store all proposed samples
+  total_attempts <- 0              # Track total attempts
+
+  while (accepted_samples < sample_size) {
+    iteration <- iteration + 1
+
+    # Adjust number of proposals dynamically
+    num_proposals <- floor(max(scaling_factor * (sample_size - accepted_samples), min_proposals))
+
+    # Generate a batch of proposals using the sampler from the setup
+    proposals <- get_proposals(setup, num_proposals)
+    accepts <- get_accepts(setup, proposals)
+
+    # Append accepted proposals to the sample list
+    sample_list[[iteration]] <- proposals[accepts]
+    accepted_samples <- accepted_samples + sum(accepts)
+
+    # Update scaling factor based on acceptance rate from the first iteration
+    total_attempts <- total_attempts + num_proposals
+    if (iteration == 1) {
+      scaling_factor <- scaling_factor * sample_size / sum(accepts)
+    }
+  }
+
+  # Return the first 'sample_size' samples, flattened into a vector
+  final_samples <- unlist(sample_list)[1:sample_size]
+
+  # Compute acceptance rate
+  acceptance_rate <- accepted_samples / total_attempts
+
+  result <- list(
+    samples = final_samples,
+    acceptance_rate = acceptance_rate,
+    log_target_density = setup$log_target_density
+  )
+
+  class(result) <- "rejection_sampler"
+
+  result
+}
+
+
+#' Generate Proposals Using C++ Vectorized Method
+#'
+#' This function serves as an interface to generate a set of proposals using a C++-based vectorized method.
+#' It calls `get_proposals.vectorize` to produce proposals for each element in the input vector `x`.
+#'
+#' @param x A numeric vector for which proposals are to be generated.
+#' @param n An integer specifying the number of proposals to generate for each element in `x`.
+#' @return A numeric vector or list of proposals generated for each element in `x`.
+#' @seealso \code{\link{get_proposals.vectorize}}
+#' @export
+get_proposals.cpp <- function(x, n) {
+  get_proposals.vectorize(x, n)
+}
+
+#' Generate Acceptance Vector
+#'
+#' This function computes acceptances for each element in the input vector `x`, based on given `proposals`.
+#' The method used is `get_accepts.naive`, which performs a naive acceptance calculation.
+#'
+#' @param x A numeric vector for which acceptances are to be calculated.
+#' @param proposals A list or vector of proposals generated for each element in `x`.
+#' @return A logical vector indicating acceptances for each element in `x`.
+#' @seealso \code{\link{get_accepts.naive}}
+#' @export
+get_accepts.cpp <- function(setup, proposals) {
+  get_accepts_gaussian_cpp(setup$mu,
+                           setup$sd,
+                           setup$log_alpha_prime,
+                           proposals,
+                           runif(length(proposals)))
+}
+
+
+
+#' Control Sampling Process Using C++ Vectorized Method
+#'
+#' This function serves as a controller to manage the sampling process using a C++-based vectorized method.
+#' It verifies that the input `setup` is of class `gaussian_envelope_class` and then calls `controller.vectorize`
+#' to execute the sampling procedure based on the specified parameters.
+#'
+#' @param setup An object of class \code{gaussian_envelope_class}, containing setup information and methods for sampling.
+#' @param sample_size An integer specifying the total number of samples to generate.
+#' @param scaling_factor A numeric value to scale the sampling process. Default is \code{1}.
+#' @param min_proposals An integer specifying the minimum number of proposals required. Default is \code{1}.
+#' @return The output of \code{controller.vectorize}, which may be a vector, list, or object containing the generated samples.
+#' @seealso \code{\link{controller.vectorize}}
+#' @export
+controller.cpp <- function(setup, sample_size, scaling_factor = 1, min_proposals = 1) {
+  if (!("gaussian_envelope_class" %in% class(setup))) {
+    stop("Provide an gaussian envelope class.")
+  }
+  controller.vectorize(setup, sample_size, scaling_factor, min_proposals)
+}
+
+
+#' Rejection Sampling Wrapper
+#'
+#' A wrapper function for rejection sampling based on the specified envelope class.
+#'
+#' @param setup Envelope object of class \code{"envelope_class"}.
+#' @param sample_size Number of samples to draw.
+#' @param type Sampling method, either \code{"cpp"} or \code{"vectorize"}.
+#' @return A list with sampled values and metadata.
+#' @export
+rejection_sampler_wrapper <- function(setup, sample_size, type = "vectorize") {
+  if (!("envelope_class" %in% class(setup))) {
+    stop("Provide an envelope class.")
+  }
+
+  setup <- add_class(setup, match.arg(type, c("cpp", "vectorize")))
+  controller(setup, sample_size)
+}
+
+
+#' Generate Samples Using Custom Sampler
+#'
+#' This function generates samples based on a custom piecewise distribution defined by parameters `c`, `Q`, `a`, `b`, and `z`.
+#' It calculates a cumulative probability and finds the interval index for each sample, then computes the sampled values
+#' based on the specified parameters.
+#'
+#' @param n An integer specifying the number of samples to generate.
+#' @param c A numeric constant used in scaling the cumulative probability.
+#' @param Q A numeric vector of cumulative probabilities defining interval boundaries.
+#' @param a A numeric vector of coefficients used in the transformation of sampled values.
+#' @param b A numeric vector of intercepts used in the transformation of sampled values.
+#' @param z A numeric vector defining interval start points, corresponding to each cumulative probability in `Q`.
+#' @return A numeric vector of sampled values generated according to the specified parameters.
+#' @seealso \code{\link{create_log_envelope_density}}
+#' @export
+create_sampler_function <- function(n, c, Q, a, b, z) {
+  cu <- c * runif(n)
+  i <- findInterval(cu, Q)
+  log(a[i] * exp(-b[i]) * (cu - Q[i]) + exp(a[i] * z[i])) / a[i]
+}
+
+
+#' Compute Log Envelope Density
+#'
+#' This function computes the log envelope density for each value in `x`, given a set of intervals defined by `z`.
+#' The density is calculated using linear transformations specified by coefficients `a` and intercepts `b`.
+#'
+#' @param x A numeric vector of values for which to compute the log envelope density.
+#' @param z A numeric vector of interval boundaries corresponding to each element in `a` and `b`.
+#' @param a A numeric vector of coefficients for linear transformations within each interval.
+#' @param b A numeric vector of intercepts for linear transformations within each interval.
+#' @return A numeric vector representing the computed log envelope density for each value in `x`.
+#' @seealso \code{\link{create_sampler_function}}
+#' @export
+create_log_envelope_density <- function(x, z, a, b){
+  i <- findInterval(x, z)
+  a[i] * x + b[i]
+}
+
+
+
+#' Create a Log Affine Envelope Function
+#'
+#' This function constructs a log affine envelope for a target density, based on a specified range (`start`, `end`), knots,
+#' and optional custom functions for creating a sampler and computing the log envelope density.
+#' The envelope can be used for importance sampling or other density estimation methods.
+#'
+#' @param log_target_density A function that computes the log of the target density at a given point.
+#' @param d_log_target_density An optional function that computes the derivative of the log target density. Default is \code{NULL}.
+#' @param knots A numeric vector of knot points that define the intervals for the log affine envelope. Default is \code{NULL}.
+#' @param create_sampler_function A function for generating samples from the envelope. Defaults to \code{create_sampler_function_cpp}.
+#' @param create_log_envelope_density A function for computing the log envelope density for given values. Defaults to \code{create_log_envelope_density_cpp}.
+#' @param start A numeric value indicating the start of the range for the envelope. Default is \code{0}.
+#' @param end A numeric value indicating the end of the range for the envelope. Default is \code{1}.
+#' @return A list containing functions and parameters for the log affine envelope, which can be used to sample and evaluate densities.
+#' @export
+get_log_affine_envelope <- function(log_target_density,
+                                    d_log_target_density = NULL,
+                                    knots = NULL,
+                                    create_sampler_function = create_sampler_function_cpp,
+                                    create_log_envelope_density = create_log_envelope_density_cpp,
+                                    start = 0,
+                                    end = 1) {
+
+  if (is.null(d_log_target_density))
+    a <- numDeriv::grad(log_target_density, knots, method = "simple")
+  else
+    a <- d_log_target_density(knots)
+
+  b <- log_target_density(knots) - a * knots
+
+
+  n <- length(a)
+  z <- c(start, (b[2:n] - b[1:(n - 1)]) / (a[1:(n - 1)] - a[2:n]), end)
+  Q_cumsum <- cumsum(c(0, exp(b[1:n]) * (exp(a[1:n] * z[2:(n + 1)]) - exp(a[1:n] * z[1:n])) / a[1:n]))
+
+  Q = Q_cumsum[1:n]
+  c = Q_cumsum[n + 1]
+
+
+  # Create functions need
+  sampler_function <- function(n) {
+    create_sampler_function(n, c, Q, a, b, z)
+  }
+
+  log_envelope_density <- function(x) {
+    create_log_envelope_density(x, z, a, b)
+  }
+
+  # Create the envelope object as a list
+  setup <- list(
+    sampler = sampler_function,
+    log_target_density = log_target_density,
+    log_envelope_density = log_envelope_density, #envelope: log(g(x)) + log(alpha) for log(f(x))
+    log_alpha_prime = 0, # Normalization constant log_alpha_prime
+    est_alpha = NA
+  )
+
+  if(!is_an_evnelope(log_target_density, log_envelope_density, lower = start, upper = end-0.1))
+    warning("proposed evnelope might not work")
+
+
+
+  class(setup) <- c("envelope_class", "log_affine_envelope_class")
+
+  setup
+}
+
+
+
+#' Perform Adaptive One-Time Placement
+#'
+#' Adjusts knot placement in the envelope function based on initial samples from rejection sampling.
+#'
+#' @param initial_envelope Initial envelope object.
+#' @param log_target_density Function for computing the log target density.
+#' @param d_log_target_density Function for computing the derivative of the log target density.
+#' @param initial_samples Number of initial samples.
+#' @param num_knots Number of knots to place adaptively.
+#' @return A list containing the modified envelope, knot positions, and initial samples.
+#' @export
+adaptive_one_time_placement <- function(initial_envelope, log_target_density, d_log_target_density, initial_samples = 1000, num_knots = 5, ...) {
+
+  initial_res <- rejection_sampler_wrapper(initial_envelope, initial_samples, ...)
+
+
+  probs <- seq(0, 1, length.out = num_knots + 2)[-c(1, num_knots + 2)]  # Exclude 0% and 100%
+  knots <- quantile(initial_res$samples, probs = probs)
+
+  new_envelope <- get_log_affine_envelope(log_target_density, d_log_target_density, knots)
+
+  return(list(
+    envelope = new_envelope,
+    knots = knots,
+    samples = initial_res$samples
+  ))
+}
+
+
+#' Adaptive Knot Placement for Log Affine Envelope
+#'
+#' This function adapts the placement of knots in the log affine envelope of a target density function.
+#' The adaptive placement improves sampling efficiency by adjusting knot positions based on gradient information.
+#'
+#' @param initial_knots A numeric vector of initial knot positions for constructing the log affine envelope.
+#' @param log_target_density A function that computes the log of the target density at a given point.
+#' @param d_log_target_density A function that computes the derivative of the log target density.
+#' @param sample_size An integer specifying the number of samples to use in each iteration. Default is \code{1000}.
+#' @param max_iterations An integer specifying the maximum number of iterations for the adaptive algorithm. Default is \code{10}.
+#' @param num_tries An integer specifying the number of attempts to adjust each knot position. Default is \code{10}.
+#' @return A numeric vector of adaptively placed knots for constructing the log affine envelope.
+#' @export
+adaptive_placement <- function(initial_knots, log_target_density, d_log_target_density, sample_size = 1000, max_iterations = 10, num_tries = 10) {
+  # initial_knots: Numeric vector of initial knot positions
+  # sample_size: Integer, number of samples to draw in each iteration
+  # max_iterations: Integer, maximum number of iterations to perform
+
+  current_knots <- initial_knots
+  best_time <- Inf
+  best_envelope <- NULL
+  best_knots <- NULL
+  acceptance_rates <- c()
+  total_times <- c()
+  samples <- c()
+  tried_num_knots <- c()
+  for (iteration in 1:max_iterations) {
+    # Create envelope with current knots
+    envelope <- get_log_affine_envelope(log_target_density, d_log_target_density, current_knots)
+
+    # Measure time to sample
+    times <- c()
+    for(i in 1:num_tries)
+    {
+      start_time <- Sys.time()
+      res <- rejection_sampler_wrapper(envelope, sample_size)
+      end_time <- Sys.time()
+      times <- c(times, as.numeric(difftime(end_time, start_time, units = "secs")))
+    }
+    total_time <- median(times)
+
+
+    acceptance_rates <- c(acceptance_rates, res$acceptance_rate)
+    total_times <- c(total_times, total_time)
+    tried_num_knots <- c(tried_num_knots, length(current_knots))
+
+    if (total_time < best_time) {
+      best_time <- total_time
+      best_envelope <- envelope
+      best_knots <- current_knots
+    }
+
+    # Adjust the number of knots for the next iteration
+    num_knots <- length(current_knots) + 1  # Increment number of knots
+    probs <- seq(0, 1, length.out = num_knots + 2)[-c(1, num_knots + 2)]  # Exclude 0% and 100%
+    current_knots <- quantile(res$samples, probs = probs)
+  }
+
+  return(list(
+    envelope = best_envelope,
+    knots = best_knots,
+    acceptance_rates = acceptance_rates,
+    total_times = total_times,
+    num_knots = tried_num_knots
+  ))
+}
+
+
+#' Perform Rejection Sampling with Specified Envelope Type
+#'
+#' This function performs rejection sampling to generate samples from a target density, using either a Gaussian
+#' or log affine envelope. The function allows customization of the envelope type and initial knots for adaptive
+#' placement within the envelope.
+#'
+#' @param n An integer specifying the number of samples to generate.
+#' @param log_target_density A function that computes the log of the target density at a given point.
+#' @param envelope_type A character string specifying the type of envelope to use. Options are \code{"gaussian"} (default) or \code{"log_affine"}.
+#' @param d_log_target_density An optional function that computes the derivative of the log target density. Default is \code{NULL}.
+#' @param initial_knots A numeric vector of initial knot positions, used when \code{envelope_type} is \code{"log_affine"}. Default is \code{c(0.1, 0.5)}.
+#' @return A numeric vector of accepted samples from the target density.
+#' @export
+perform_rejection_sampling <- function(n, log_target_density, envelope_type = "gaussian", d_log_target_density = NULL, initial_knots =  c(0.1,0.5)) {
+
+  # Change these
+  type <- match.arg(envelope_type, choices = c("gaussian", "log_affine"))
+
+  if(type == "gaussian"){
+    envelope <- get_gaussian_envelope(log_target_density, type = "tight")
+  } else if (type == "log_affine") {
+
+    if(n < 1e6) {
+      envelope <- get_log_affine_envelope(log_target_density, d_log_target_density, knots = initial_knots)
+      if(n >= 1e5)
+        envelope <- adaptive_one_time_placement(envelope, log_target_density_cpp, d_log_target_density_cpp, num_knots = 2)$envelope
+    } else {
+      envelope <- adaptive_placement(
+        initial_knots = initial_knots,
+        log_target_density_cpp,
+        d_log_target_density_cpp,
+        sample_size = n/100,
+        num_tries = 5,
+        max_iterations = floor(log(n))
+      )$envelope
+    }
+  }
+
+  if ("gaussian_envelope_class" %in% class(envelope)) {
+    type = "cpp"
+  }
+  else {
+    type = "vectorize"
+  }
+  rejection_sampler_wrapper(envelope, sample_size = n, type)
+}
