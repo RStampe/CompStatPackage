@@ -1,6 +1,6 @@
 Package: CompStatPackage
 Title: Functions used in CompStat
-Version: 0.0.2
+Version: 0.0.3
 Authors@R: 
     person("Rasmus Emil", "Skousen", , "ras.public@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
@@ -17,7 +17,8 @@ Imports:
     tidyverse,
     patchwork,
     scales,
-    numDeriv
+    numDeriv,
+    splines
 LinkingTo: 
     Rcpp
 URL: https://github.com/RStampe/CompStatPackage
