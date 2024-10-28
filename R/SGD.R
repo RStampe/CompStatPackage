@@ -144,7 +144,7 @@ get_design_DR = function(x, parameter_size){
 }
 
 
-function_H_factory <- function(design, y, calculate_grad_H = calculate_grad_H) {
+function_H_factory <- function(design, y) {
   if (!inherits(design, "design")) {
     warning("design object is not a design class")
   }
