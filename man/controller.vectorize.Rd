@@ -2,22 +2,10 @@
 % Please edit documentation in R/RS.R
 \name{controller.vectorize}
 \alias{controller.vectorize}
-\title{Controller for Vectorized Rejection Sampling}
+\title{controller vectorize}
 \usage{
 \method{controller}{vectorize}(setup, sample_size, scaling_factor = 1, min_proposals = 1)
 }
-\arguments{
-\item{setup}{An envelope object with sampling properties.}
-
-\item{sample_size}{Number of samples to generate.}
-
-\item{scaling_factor}{Dynamic scaling factor for sample adjustment.}
-
-\item{min_proposals}{Minimum number of proposals for each iteration.}
-}
-\value{
-A list with the final sampled values and acceptance rate.
-}
 \description{
-Runs a vectorized rejection sampling algorithm with dynamic proposal adjustment.
+controller vectorize
 }

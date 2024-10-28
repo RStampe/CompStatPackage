@@ -14,11 +14,7 @@ kernel_cpp_gaussian(grid_points, vec_obs, bandwidth)
 \item{bandwidth}{A positive numeric value specifying the smoothing bandwidth.}
 }
 \value{
-A list with two components:
-\itemize{
-\item \code{x}: Grid points where the density is estimated.
-\item \code{y}: Corresponding density estimates using the Gaussian kernel.
-}
+A list with Grid points and density estimates.
 }
 \description{
 Computes kernel density estimates at specified grid points using the Gaussian kernel.

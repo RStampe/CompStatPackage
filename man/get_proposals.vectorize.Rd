@@ -2,22 +2,10 @@
 % Please edit documentation in R/RS.R
 \name{get_proposals.vectorize}
 \alias{get_proposals.vectorize}
-\title{Generate Proposal Vector}
+\title{Get proposals vectorize}
 \usage{
-\method{get_proposals}{vectorize}(x, n)
-}
-\arguments{
-\item{x}{A numeric vector for which proposals are to be generated.}
-
-\item{n}{An integer specifying the number of proposals to generate for each element in \code{x}.}
-}
-\value{
-A list or vector of proposals generated for each element in \code{x}.
+\method{get_proposals}{vectorize}(setup, n)
 }
 \description{
-This function generates proposals for each element in the input vector \code{x} based on a given parameter \code{n}.
-The method used is \code{get_proposals.naive}, which performs a naive generation of proposals.
-}
-\seealso{
-\code{\link{get_proposals.naive}}
+Get proposals vectorize
 }

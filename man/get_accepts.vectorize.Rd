@@ -2,22 +2,10 @@
 % Please edit documentation in R/RS.R
 \name{get_accepts.vectorize}
 \alias{get_accepts.vectorize}
-\title{Generate Acceptance Vector}
+\title{Get accepts vectorize}
 \usage{
-\method{get_accepts}{vectorize}(x, proposals)
-}
-\arguments{
-\item{x}{A numeric vector for which acceptances are to be calculated.}
-
-\item{proposals}{A list or vector of proposals generated for each element in \code{x}.}
-}
-\value{
-A logical vector indicating acceptances for each element in \code{x}.
+\method{get_accepts}{vectorize}(setup, proposals)
 }
 \description{
-This function computes acceptances for each element in the input vector \code{x}, based on given \code{proposals}.
-The method used is \code{get_accepts.naive}, which performs a naive acceptance calculation.
-}
-\seealso{
-\code{\link{get_accepts.naive}}
+Get accepts vectorize
 }

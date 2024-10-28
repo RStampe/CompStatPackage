@@ -2,22 +2,10 @@
 % Please edit documentation in R/RS.R
 \name{get_accepts.cpp}
 \alias{get_accepts.cpp}
-\title{Generate Acceptance Vector}
+\title{get accepts cpp}
 \usage{
 \method{get_accepts}{cpp}(setup, proposals)
 }
-\arguments{
-\item{proposals}{A list or vector of proposals generated for each element in \code{x}.}
-
-\item{x}{A numeric vector for which acceptances are to be calculated.}
-}
-\value{
-A logical vector indicating acceptances for each element in \code{x}.
-}
 \description{
-This function computes acceptances for each element in the input vector \code{x}, based on given \code{proposals}.
-The method used is \code{get_accepts.naive}, which performs a naive acceptance calculation.
-}
-\seealso{
-\code{\link{get_accepts.naive}}
+get accepts cpp
 }

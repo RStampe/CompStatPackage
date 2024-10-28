@@ -10,25 +10,17 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// epanechnikov_kernel_cpp
-NumericVector epanechnikov_kernel_cpp(const NumericVector& x);
-RcppExport SEXP _CompStatPackage_epanechnikov_kernel_cpp(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(epanechnikov_kernel_cpp(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// gaussian_kernel_cpp
-NumericVector gaussian_kernel_cpp(NumericVector x);
-RcppExport SEXP _CompStatPackage_gaussian_kernel_cpp(SEXP xSEXP) {
+// perform_em_cpp
+List perform_em_cpp(NumericVector x, List listOfInitialPar, int maxIteration, double epsilon);
+RcppExport SEXP _CompStatPackage_perform_em_cpp(SEXP xSEXP, SEXP listOfInitialParSEXP, SEXP maxIterationSEXP, SEXP epsilonSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(gaussian_kernel_cpp(x));
+    Rcpp::traits::input_parameter< List >::type listOfInitialPar(listOfInitialParSEXP);
+    Rcpp::traits::input_parameter< int >::type maxIteration(maxIterationSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    rcpp_result_gen = Rcpp::wrap(perform_em_cpp(x, listOfInitialPar, maxIteration, epsilon));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -55,20 +47,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const NumericVector& >::type vec_obs(vec_obsSEXP);
     Rcpp::traits::input_parameter< double >::type bandwidth(bandwidthSEXP);
     rcpp_result_gen = Rcpp::wrap(kernel_cpp_gaussian(grid_points, vec_obs, bandwidth));
-    return rcpp_result_gen;
-END_RCPP
-}
-// binning_cpp
-NumericVector binning_cpp(const NumericVector& vec_obs, double lower, double upper, int number_of_bins);
-RcppExport SEXP _CompStatPackage_binning_cpp(SEXP vec_obsSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP number_of_binsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type vec_obs(vec_obsSEXP);
-    Rcpp::traits::input_parameter< double >::type lower(lowerSEXP);
-    Rcpp::traits::input_parameter< double >::type upper(upperSEXP);
-    Rcpp::traits::input_parameter< int >::type number_of_bins(number_of_binsSEXP);
-    rcpp_result_gen = Rcpp::wrap(binning_cpp(vec_obs, lower, upper, number_of_bins));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -178,11 +156,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_CompStatPackage_epanechnikov_kernel_cpp", (DL_FUNC) &_CompStatPackage_epanechnikov_kernel_cpp, 1},
-    {"_CompStatPackage_gaussian_kernel_cpp", (DL_FUNC) &_CompStatPackage_gaussian_kernel_cpp, 1},
+    {"_CompStatPackage_perform_em_cpp", (DL_FUNC) &_CompStatPackage_perform_em_cpp, 4},
     {"_CompStatPackage_kernel_cpp_epanechnikov", (DL_FUNC) &_CompStatPackage_kernel_cpp_epanechnikov, 3},
     {"_CompStatPackage_kernel_cpp_gaussian", (DL_FUNC) &_CompStatPackage_kernel_cpp_gaussian, 3},
-    {"_CompStatPackage_binning_cpp", (DL_FUNC) &_CompStatPackage_binning_cpp, 4},
     {"_CompStatPackage_kernel_cpp_epanechnikov_binning", (DL_FUNC) &_CompStatPackage_kernel_cpp_epanechnikov_binning, 3},
     {"_CompStatPackage_kernel_cpp_gaussian_binning", (DL_FUNC) &_CompStatPackage_kernel_cpp_gaussian_binning, 3},
     {"_CompStatPackage_set_data_vectors", (DL_FUNC) &_CompStatPackage_set_data_vectors, 2},

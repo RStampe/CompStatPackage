@@ -9,15 +9,6 @@ double epanechnikov_kernel_single_cpp(double x) {
   else
     return 0;
 }
-
-//' Epanechnikov Kernel Function (C++)
-//'
-//' Calculates the Epanechnikov kernel for a given vector of input values.
-//'
-//' @param x A numeric vector of values for which to calculate the Epanechnikov kernel.
-//' @return A numeric vector of kernel values, with zeros for inputs outside the range -1, 1.
-//' @export
-// [[Rcpp::export]]
 NumericVector epanechnikov_kernel_cpp(const NumericVector& x) {
   // if problem with int use unsigned long long
   int n = x.size();
@@ -34,14 +25,6 @@ double gaussian_kernel_single_cpp(double x) {
   return inv_sqrt_2pi * std::exp(-0.5 * x * x);
 }
 
-//' Gaussian Kernel Function (C++)
-//'
-//' Calculates the Gaussian (Normal) kernel for a given vector of input values.
-//'
-//' @param x A numeric vector of values for which to calculate the Gaussian kernel.
-//' @return A numeric vector of Gaussian kernel values for each element in `x`.
-//' @export
-// [[Rcpp::export]]
 NumericVector gaussian_kernel_cpp(NumericVector x) {
   // if problem with int use unsigned long long
   int n = x.size();
@@ -61,10 +44,7 @@ NumericVector gaussian_kernel_cpp(NumericVector x) {
 //' @param grid_points A numeric vector of grid points where density estimates are evaluated.
 //' @param vec_obs A numeric vector of observed data points.
 //' @param bandwidth A positive numeric value specifying the smoothing bandwidth.
-//' @return A list with two components:
-//'   - `x`: Grid points where the density is estimated.
-//'   - `y`: Corresponding density estimates using the Epanechnikov kernel.
-//' @export
+//' @return A list with Grid points and density estimates.
 // [[Rcpp::export]]
 List kernel_cpp_epanechnikov(const NumericVector& grid_points, const NumericVector& vec_obs, double bandwidth) {
   int n_grid = grid_points.size();
@@ -102,10 +82,7 @@ List kernel_cpp_epanechnikov(const NumericVector& grid_points, const NumericVect
 //' @param grid_points A numeric vector of grid points where density estimates are evaluated.
 //' @param vec_obs A numeric vector of observed data points.
 //' @param bandwidth A positive numeric value specifying the smoothing bandwidth.
-//' @return A list with two components:
-//'   - `x`: Grid points where the density is estimated.
-//'   - `y`: Corresponding density estimates using the Gaussian kernel.
-//' @export
+//' @return A list with Grid points and density estimates.
 // [[Rcpp::export]]
 List kernel_cpp_gaussian(const NumericVector& grid_points, const NumericVector& vec_obs, double bandwidth) {
   int n_grid = grid_points.size();
@@ -136,17 +113,6 @@ List kernel_cpp_gaussian(const NumericVector& grid_points, const NumericVector& 
 }
 
 
-//' Data Binning Function (C++)
-//'
-//' Bins observed data points within a specified range, dividing the range into equal-width bins.
-//'
-//' @param vec_obs A numeric vector of observed data points.
-//' @param lower The lower bound of the binning range.
-//' @param upper The upper bound of the binning range.
-//' @param number_of_bins An integer specifying the number of bins.
-//' @return A numeric vector with counts of observations in each bin.
-//' @export
-// [[Rcpp::export]]
 NumericVector binning_cpp(const NumericVector& vec_obs, double lower, double upper, int number_of_bins) {
   double delta = (upper - lower) / (number_of_bins - 1);
   std::vector<double> binned_obs(number_of_bins, 0.0);
@@ -186,10 +152,7 @@ NumericVector binning_cpp(const NumericVector& vec_obs, double lower, double upp
 //' @param grid_points A numeric vector of grid points where density estimates are evaluated.
 //' @param vec_obs A numeric vector of observed data points.
 //' @param bandwidth A positive numeric value specifying the smoothing bandwidth.
-//' @return A list with two components:
-//'   - `x`: Grid points where the density is estimated.
-//'   - `y`: Corresponding density estimates using the Epanechnikov kernel and binning.
-//' @export
+//' @return A list with Grid points and density estimates.
 // [[Rcpp::export]]
 List kernel_cpp_epanechnikov_binning(const NumericVector& grid_points,
                                      const NumericVector& vec_obs,
@@ -253,10 +216,7 @@ List kernel_cpp_epanechnikov_binning(const NumericVector& grid_points,
 //' @param grid_points A numeric vector of grid points where density estimates are evaluated.
 //' @param vec_obs A numeric vector of observed data points.
 //' @param bandwidth A positive numeric value specifying the smoothing bandwidth.
-//' @return A list with two components:
-//'   - `x`: Grid points where the density is estimated.
-//'   - `y`: Corresponding density estimates using the Gaussian kernel and binning.
-//' @export
+//' @return A list with Grid points and density estimates.
 // [[Rcpp::export]]
 List kernel_cpp_gaussian_binning(const NumericVector& grid_points,
                                  const NumericVector& vec_obs,

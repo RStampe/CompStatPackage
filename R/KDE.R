@@ -5,7 +5,6 @@
 #'
 #' @param x A numeric value for which the kernel value is to be calculated.
 #' @return A numeric value representing the kernel density, which will be zero for absolute values of `x` greater than 1.
-#' @export
 epanechnikov_kernel <- function(x) (abs(x) <= 1) * (3 / 4) * (1 - x^2)
 
 
@@ -16,7 +15,6 @@ epanechnikov_kernel <- function(x) (abs(x) <= 1) * (3 / 4) * (1 - x^2)
 #'
 #' @param x A numeric value for which the Gaussian kernel density is to be calculated.
 #' @return A numeric value representing the Gaussian kernel density at the input `x`.
-#' @export
 gaussian_kernel <- function(x) (1 / sqrt(2 * pi)) * exp(-x^2 / 2)
 
 #' Title: Kernel Density Estimator for a Vector of Grid Points
@@ -305,7 +303,7 @@ get_ucv_bw <- function(vec_obs, kernel_evaluator = kernel_cpp_epanechnikov) {
 #'   - `x`: Grid points where the density is estimated.
 #'   - `y`: Corresponding density values.
 #' @export
-density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", binning = TRUE, number_of_gridpoints = 512) {
+my_density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov", binning = TRUE, number_of_gridpoints = 512) {
   number_of_gridpoints <- 2^round(log(number_of_gridpoints, base = 2))
 
   # Process the kernel parameter

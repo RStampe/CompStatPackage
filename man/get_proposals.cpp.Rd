@@ -2,22 +2,10 @@
 % Please edit documentation in R/RS.R
 \name{get_proposals.cpp}
 \alias{get_proposals.cpp}
-\title{Generate Proposals Using C++ Vectorized Method}
+\title{get proposals cpp}
 \usage{
 \method{get_proposals}{cpp}(x, n)
 }
-\arguments{
-\item{x}{A numeric vector for which proposals are to be generated.}
-
-\item{n}{An integer specifying the number of proposals to generate for each element in \code{x}.}
-}
-\value{
-A numeric vector or list of proposals generated for each element in \code{x}.
-}
 \description{
-This function serves as an interface to generate a set of proposals using a C++-based vectorized method.
-It calls \code{get_proposals.vectorize} to produce proposals for each element in the input vector \code{x}.
-}
-\seealso{
-\code{\link{get_proposals.vectorize}}
+get proposals cpp
 }

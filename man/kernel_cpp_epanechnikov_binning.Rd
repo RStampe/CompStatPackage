@@ -14,11 +14,7 @@ kernel_cpp_epanechnikov_binning(grid_points, vec_obs, bandwidth)
 \item{bandwidth}{A positive numeric value specifying the smoothing bandwidth.}
 }
 \value{
-A list with two components:
-\itemize{
-\item \code{x}: Grid points where the density is estimated.
-\item \code{y}: Corresponding density estimates using the Epanechnikov kernel and binning.
-}
+A list with Grid points and density estimates.
 }
 \description{
 Computes kernel density estimates at specified grid points using the Epanechnikov kernel
