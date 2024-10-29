@@ -10,6 +10,7 @@ kernel_density_estimation(
   kernel_function = NULL,
   kernel_calculator = NULL,
   n = 512,
+  bandwidth_correction = 1,
   ...
 )
 }

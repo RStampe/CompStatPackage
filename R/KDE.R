@@ -83,17 +83,15 @@ kernel_binning_smart <- function(grid_points, vec_obs, bandwidth, kernel_functio
 #' @return A list containing:
 #'   - `x`: Grid points where the density is estimated.
 #'   - `y`: Corresponding density values.
-kernel_density_estimation <- function(vec_obs, bandwidth, kernel_function = NULL, kernel_calculator = NULL, n = 512, ...) {
+kernel_density_estimation <- function(vec_obs, bandwidth, kernel_function = NULL, kernel_calculator = NULL, n = 512, bandwidth_correction = 1, ...) {
 
   grid_points <- seq(min(vec_obs) - 3 * bandwidth, max(vec_obs) + 3 * bandwidth, length.out = n)
 
-  if (is.null(kernel_function)) {
-    if (grepl("epanechnikov", deparse(substitute(kernel_calculator)))) bandwidth <- bandwidth * sqrt(5)
+  bandwidth <- bandwidth * bandwidth_correction
 
+  if (is.null(kernel_function)) {
     xy_values <- kernel_calculator(grid_points, vec_obs, bandwidth)
   } else {
-    if (grepl("epanechnikov", deparse(substitute(kernel_function)))) bandwidth <- bandwidth * sqrt(5)
-
     xy_values <- kernel_calculator(grid_points, vec_obs, bandwidth, kernel_function, ...)
   }
 
@@ -314,6 +312,7 @@ my_density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov
                                 "epanechnikov" = if(binning) {kernel_cpp_epanechnikov_binning} else {kernel_cpp_epanechnikov},
                                 stop("Unknown kernel"))
     kernel_function <- NULL
+    bandwidth_correction = ifelse(kernel == "epanechnikov", sqrt(5), 1)
   } else if (is.function(kernel)) {
     kernel_calculator <- if(binning) {kernel_binning_smart} else {kernel_vec}
     kernel_function <- kernel
@@ -355,7 +354,8 @@ my_density <- function(vec_data, bandwidth = "silverman", kernel = "epanechnikov
     bandwidth = bw,
     kernel_function = NULL,
     kernel_calculator = kernel_calculator,
-    n = number_of_gridpoints
+    n = number_of_gridpoints,
+    bandwidth_correction = bandwidth_correction
   )
 }
 
