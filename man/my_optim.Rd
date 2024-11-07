@@ -12,6 +12,7 @@ my_optim(
   lambda,
   algorithm = "batch",
   con = list(),
+  function_factory = function_H_factory,
   ...
 )
 }

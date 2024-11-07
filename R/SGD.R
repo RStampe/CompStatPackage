@@ -681,15 +681,17 @@ newton <- function(setup, con) {
 #' @return A list containing the optimized parameters, final loss value,
 #'   and convergence status.
 #' @export
-my_optim <- function(X, y, basis = "non", p, lambda, algorithm = "batch", con = list(),...) {
+my_optim <- function(X, y, basis = "non", p, lambda, algorithm = "batch", con = list(),
+                     function_factory = function_H_factory,
+                     ...) {
   basis <- match.arg(basis, c("splines", "DR", "non"))
   design_function <- ifelse(basis == "splines", get_design_B_splines, ifelse(basis == "DR", get_design_DR, get_design_do_nothing))
-  setup <- setup_for_optim(X, y, function_H_factory, design_function, num_parameters = p)
+  setup <- setup_for_optim(X, y, function_factory, design_function, num_parameters = p)
 
   algorithm <- match.arg(algorithm, c("batch", "adam", "momentum", "newton", "gd"))
   algorithm_wrapper<- ifelse(algorithm == "newton", newton, ifelse(algorithm == "gd", gradient_descent, sgd_wrapper))
 
-  con$batching <- ifelse(basis == "adam", adam, ifelse(basis == "momentum", momentum, batch))
+  con$batching <- ifelse(algorithm == "adam", adam, ifelse(algorithm == "momentum", momentum, batch))
   con$lambda = lambda
   perform_optim(setup, algorithm_wrapper, con)
 }
