@@ -432,6 +432,7 @@ adam <- function() {
     gradient_function,
     lambda,
     mini_batch_size,
+    clipping,
     adam_momentum_mermory_1 = 0.9,     # Momentum memory
     adam_momentum_mermory_2 = 0.9,     # Second moment memory
     ...
@@ -457,6 +458,7 @@ momentum <- function() {
     gradient_function,
     lambda,
     mini_batch_size,
+    clipping,
     momentum_mermory = 0.95,        # Momentum memory
     ...
   ) {
@@ -691,7 +693,7 @@ my_optim <- function(X, y, basis = "non", p, lambda, algorithm = "batch", con = 
   algorithm <- match.arg(algorithm, c("batch", "adam", "momentum", "newton", "gd"))
   algorithm_wrapper<- ifelse(algorithm == "newton", newton, ifelse(algorithm == "gd", gradient_descent, sgd_wrapper))
 
-  con$batching <- ifelse(algorithm == "adam", adam, ifelse(algorithm == "momentum", momentum, batch))
+  con$batching <- ifelse(algorithm == "adam", adam(), ifelse(algorithm == "momentum", momentum(), batch))
   con$lambda = lambda
   perform_optim(setup, algorithm_wrapper, con)
 }
